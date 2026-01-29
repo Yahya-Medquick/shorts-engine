@@ -17,11 +17,14 @@ jobs:
           pip install ffmpeg-python pillow cloudinary
 
       - name: Run Processing Engine
+        id: engine
         env:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-        run: python editor.py
+        run: |
+          python editor.py
+          echo "DOWNLOAD_URL=$(cat link.txt)" >> $GITHUB_ENV
 
       - name: Send Email with Download Link
         uses: dawidd6/action-send-mail@v3
@@ -37,5 +40,3 @@ jobs:
             Tap the link below to watch or save your video to your phone:
             
             ${{ env.DOWNLOAD_URL }}
-        env:
-          DOWNLOAD_URL: ${{ steps.get_link.outputs.link }}
