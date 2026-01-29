@@ -1,0 +1,48 @@
+name: Professional Shorts Pipeline
+on:
+  repository_dispatch:
+    types: [process_video]
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Tools
+        uses: svenstaro/setup-ffmpeg@v2
+
+      - name: Install Python Libs
+        run: pip install ffmpeg-python pillow
+
+      - name: Process Video & Thumbnail
+        run: python editor.py
+
+      - name: Upload Video to Drive
+        uses: Jumbo810/Upload_Github_Artifacts_TO_GDrive@v2.3.3
+        with:
+          target: final_short.mp4
+          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
+          parent_folder_id: ${{ secrets.DRIVE_FOLDER_ID }}
+
+      - name: Upload Thumbnail to Drive
+        uses: Jumbo810/Upload_Github_Artifacts_TO_GDrive@v2.3.3
+        with:
+          target: thumbnail.jpg
+          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
+          parent_folder_id: ${{ secrets.DRIVE_FOLDER_ID }}
+
+      - name: Send Email Notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "✅ Video Ready"
+          to: ${{ secrets.RECIPIENT_EMAIL }}
+          from: "AI Editor"
+          body: |
+            Your video and thumbnail are ready!
+            Folder Link: https://drive.google.com/drive/u/0/folders/${{ secrets.DRIVE_FOLDER_ID }}
