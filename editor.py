@@ -4,27 +4,22 @@ import random
 from PIL import Image, ImageDraw, ImageFont
 
 def create_thumbnail(video_path, text, output_path):
-    # Extract a frame from the middle of the video
     probe = ffmpeg.probe(video_path)
     duration = float(probe['format']['duration'])
     ffmpeg.input(video_path, ss=duration/2).output('frame.jpg', vframes=1).run(overwrite_output=True)
     
-    # Draw text on it
     img = Image.open('frame.jpg')
     draw = ImageDraw.Draw(img)
     try:
+        # Looking directly in root
         font = ImageFont.truetype("bold_font.ttf", 150)
     except:
-        font = ImageFont.load_default() # Fallback
+        font = ImageFont.load_default()
 
-    # Draw Text with Outline for visibility
     x, y = 100, 400
-    # Outline
     draw.text((x-5, y), text, font=font, fill="black")
     draw.text((x+5, y), text, font=font, fill="black")
-    # Main Text
     draw.text((x, y), text, font=font, fill="yellow")
-    
     img.save(output_path)
 
 def process_video(input_path, output_path, music_path, hook_path):
@@ -51,9 +46,5 @@ def process_video(input_path, output_path, music_path, hook_path):
     create_thumbnail(output_path, random.choice(titles), "thumbnail.jpg")
 
 if __name__ == "__main__":
-    # Ensure assets exist
-    if not os.path.exists('bg_music.mp3'):
-        print("Error: Missing bg_music.mp3")
-        exit(1)
-        
-    process_video('raw_input.mp4', 'final_short.mp4', 'assets/bg_music.mp3', 'assets/hook.mp4')
+    # CRITICAL: No 'assets/' here. Files must be on the main page.
+    process_video('raw_input.mp4', 'final_short.mp4', 'bg_music.mp3', 'hook.mp4')
