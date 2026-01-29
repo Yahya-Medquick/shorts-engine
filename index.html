@@ -22,49 +22,77 @@
     <p id="status"></p>
 
     <script>
-        async function startProcessing() {
-            const fileInput = document.getElementById('videoInput');
-            if(fileInput.files.length === 0) { alert("Please select a file!"); return; }
-            
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            document.getElementById('status').innerText = "Uploading to Engine (Wait)...";
+    async function startProcessing() {
+        const fileInput = document.getElementById('videoInput');
+        if(fileInput.files.length === 0) { alert("Please select a file!"); return; }
+        
+        // This keeps your token safe from the public
+        const GITHUB_TOKEN = prompt("Please enter your GitHub Personal Access Token (ghp_...):");
+        if(!GITHUB_TOKEN) return;
 
-            reader.onload = async () => {
+        // EDIT THIS TO MATCH YOUR GITHUB EXACTLY
+        const REPO = "Yahya-Medquick/shorts-engine"; 
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        document.getElementById('status').innerText = "Uploading... (Stay on this page)";
+
+        reader.onload = async () => {
+            try {
                 const content = reader.result.split(',')[1];
-                // SECURITY NOTE: In a real app, use a backend proxy. For personal use, this works.
-                const GITHUB_TOKEN = "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"; 
-                const REPO = "Yahya-Medquick/shorts-engine";
-
-                // 1. Upload File
-                try {
-                    // Check if file exists to get SHA for overwrite
-                    let sha = "";
-                    const check = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
-                    if(check.ok) { const data = await check.json(); sha = data.sha; }
-
-                    const upload = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: "new upload", content: content, sha: sha })
-                    });
-                    
-                    if(!upload.ok) throw new Error("Upload failed");
-
-                    // 2. Trigger Action
-                    await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `token ${GITHUB_TOKEN}` },
-                        body: JSON.stringify({ event_type: "process_video" })
-                    });
-
-                    document.getElementById('status').innerText = "✅ Done! Check your Email in 3 mins.";
-                } catch (e) {
-                    document.getElementById('status').innerText = "❌ Error: " + e.message;
+                
+                // 1. Get SHA of existing file to overwrite it
+                let sha = "";
+                const check = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, {
+                    headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+                });
+                if(check.ok) {
+                    const data = await check.json();
+                    sha = data.sha;
                 }
-            };
-            reader.readAsDataURL(file);
-        }
-    </script>
+
+                // 2. Upload the file
+                const upload = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ 
+                        message: "Video upload from web", 
+                        content: content, 
+                        sha: sha 
+                    })
+                });
+                
+                if(!upload.ok) {
+                    const errorData = await upload.json();
+                    throw new Error(errorData.message || "Upload failed");
+                }
+
+                // 3. Trigger the Workflow
+                const trigger = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({ event_type: "process_video" })
+                });
+
+                if(trigger.ok) {
+                    document.getElementById('status').innerText = "✅ Success! Processing started. Check email in 3 mins.";
+                } else {
+                    document.getElementById('status').innerText = "⚠️ Uploaded, but failed to start engine.";
+                }
+
+            } catch (e) {
+                document.getElementById('status').innerText = "❌ Error: " + e.message;
+                console.error(e);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+</script>
 </body>
 </html>
