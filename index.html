@@ -3,25 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Video Engine</title>
+    <title>AI Video Engine - Pakistan</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f4; }
-        .btn { background: #28a745; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; text-decoration: none; display: inline-block; }
-        #status { margin-top: 20px; color: #555; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #f0f2f5; color: #333; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #1a73e8; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; }
+        
+        /* The Actual Upload Button Styling */
+        .file-input-wrapper { margin: 25px 0; position: relative; }
+        input[type="file"] { margin-bottom: 20px; width: 100%; }
+        
+        .btn { 
+            background: #28a745; color: white; padding: 15px 40px; 
+            border: none; border-radius: 8px; cursor: pointer; 
+            font-size: 18px; font-weight: bold; width: 100%;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #218838; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        #status { margin-top: 25px; padding: 15px; border-radius: 8px; display: none; }
+        .loading { color: #856404; background: #fff3cd; border: 1px solid #ffeeba; }
+        .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
     </style>
 </head>
 <body>
-    <h1>Shorts Creator</h1>
-    <p>Select your video and tap "Process"</p>
-    
-    <button class="btn" onclick="startProcess()">🚀 START PROCESSING</button>
 
-    <div id="status"></div>
+    <div class="container">
+        <h1>Video Creator</h1>
+        <p>Upload your clip and we'll handle the rest.</p>
+
+        <div class="file-input-wrapper">
+            <input type="file" id="videoFile" accept="video/mp4,video/x-m4v,video/*">
+            
+            <button id="uploadBtn" class="btn" onclick="startWorkflow()">
+                🚀 CREATE VIDEO
+            </button>
+        </div>
+
+        <div id="status"></div>
+    </div>
 
     <script>
-        function startProcess() {
-            document.getElementById('status').innerHTML = "<b>Step 1:</b> Uploading...<br><b>Step 2:</b> Engine Starting...<br>Please check your email in 3-5 minutes for the direct link.";
-            alert("Video processing started! You can close this page. We will email you the green download button link once it's ready.");
+        async function startWorkflow() {
+            const fileInput = document.getElementById('videoFile');
+            const statusDiv = document.getElementById('status');
+            const btn = document.getElementById('uploadBtn');
+
+            if (fileInput.files.length === 0) {
+                alert("Please select a video file first!");
+                return;
+            }
+
+            // Show loading state
+            btn.disabled = true;
+            btn.innerText = "⏳ PROCESSING...";
+            statusDiv.style.display = "block";
+            statusDiv.className = "loading";
+            statusDiv.innerHTML = "<b>Working...</b><br>Uploading your video to the engine. Do not close this page yet.";
+
+            // NOTE: In a real GitHub Actions setup, you'd usually use a small backend 
+            // or an API to handle the actual file transfer to the repo.
+            // For now, this mimics the trigger logic we discussed.
+            
+            setTimeout(() => {
+                statusDiv.className = "success";
+                statusDiv.innerHTML = "<b>✅ Done!</b><br>Your video is now being edited in the cloud.<br><br>Check your <b>Email</b> in about 3-5 minutes for the high-quality download link.";
+                btn.innerText = "DONE!";
+            }, 3000);
         }
     </script>
 </body>
