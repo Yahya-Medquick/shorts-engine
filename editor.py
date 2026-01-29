@@ -13,7 +13,7 @@ def create_thumbnail(video_path, text, output_path):
     img = Image.open('frame.jpg')
     draw = ImageDraw.Draw(img)
     try:
-        font = ImageFont.truetype("assets/bold_font.ttf", 150)
+        font = ImageFont.truetype("bold_font.ttf", 150)
     except:
         font = ImageFont.load_default() # Fallback
 
