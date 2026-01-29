@@ -10,30 +10,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install System Tools
+      - name: Install Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          pip install ffmpeg-python pillow
+          pip install ffmpeg-python pillow google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
-      - name: Process Video & Thumbnail
+      - name: Process and Upload
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
         run: python editor.py
-
-      - name: Upload Video to Drive
-        uses: adityak74/google-drive-upload-gitaction@main
-        with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          filename: final_short.mp4
-          folderId: ${{ secrets.DRIVE_FOLDER_ID }}
-          overwrite: "true"
-
-      - name: Upload Thumbnail to Drive
-        uses: adityak74/google-drive-upload-gitaction@main
-        with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          filename: thumbnail.jpg
-          folderId: ${{ secrets.DRIVE_FOLDER_ID }}
-          overwrite: "true"
 
       - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
@@ -46,7 +33,5 @@ jobs:
           to: ${{ secrets.RECIPIENT_EMAIL }}
           from: "AI Editor"
           body: |
-            Your video and thumbnail are ready!
-            
-            Access your folder here:
-            https://drive.google.com/drive/u/0/folders/${{ secrets.DRIVE_FOLDER_ID }}
+            Your video and thumbnail are ready in Google Drive!
+            Link: https://drive.google.com/drive/u/0/folders/${{ secrets.DRIVE_FOLDER_ID }}
