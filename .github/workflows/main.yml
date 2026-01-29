@@ -10,7 +10,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Tools (FFmpeg & Python Libs)
+      - name: Install System Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
@@ -20,18 +20,20 @@ jobs:
         run: python editor.py
 
       - name: Upload Video to Drive
-        uses: Jumbo810/Upload_Github_Artifacts_TO_GDrive@v2.3.3
+        uses: adityak74/google-drive-upload-gitaction@main
         with:
-          target: final_short.mp4
           credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          parent_folder_id: ${{ secrets.DRIVE_FOLDER_ID }}
+          filename: final_short.mp4
+          folderId: ${{ secrets.DRIVE_FOLDER_ID }}
+          overwrite: "true"
 
       - name: Upload Thumbnail to Drive
-        uses: Jumbo810/Upload_Github_Artifacts_TO_GDrive@v2.3.3
+        uses: adityak74/google-drive-upload-gitaction@main
         with:
-          target: thumbnail.jpg
           credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          parent_folder_id: ${{ secrets.DRIVE_FOLDER_ID }}
+          filename: thumbnail.jpg
+          folderId: ${{ secrets.DRIVE_FOLDER_ID }}
+          overwrite: "true"
 
       - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
@@ -45,4 +47,6 @@ jobs:
           from: "AI Editor"
           body: |
             Your video and thumbnail are ready!
-            Folder Link: https://drive.google.com/drive/u/0/folders/${{ secrets.DRIVE_FOLDER_ID }}
+            
+            Access your folder here:
+            https://drive.google.com/drive/u/0/folders/${{ secrets.DRIVE_FOLDER_ID }}
