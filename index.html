@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shorts Studio</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: white; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100vh; margin: 0; }
+        .btn { background-color: #BB86FC; color: black; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; border-radius: 25px; border: none; font-weight: bold; margin-top: 20px; width: 80%; max-width: 300px; }
+        .input-wrapper { margin: 20px; border: 2px dashed #BB86FC; padding: 30px; border-radius: 10px; }
+        #status { margin-top: 20px; font-weight: bold; color: #03DAC6; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Creator Studio</h1>
+    <div class="input-wrapper">
+        <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="document.getElementById('fileLabel').innerText = this.files[0].name">
+        <label for="videoInput" id="fileLabel" style="font-size: 50px;">📂</label>
+        <p>Tap folder to select video</p>
+    </div>
+    <button class="btn" onclick="startProcessing()">UPLOAD & PROCESS</button>
+    <p id="status"></p>
+
+    <script>
+        async function startProcessing() {
+            const fileInput = document.getElementById('videoInput');
+            if(fileInput.files.length === 0) { alert("Please select a file!"); return; }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            document.getElementById('status').innerText = "Uploading to Engine (Wait)...";
+
+            reader.onload = async () => {
+                const content = reader.result.split(',')[1];
+                // SECURITY NOTE: In a real app, use a backend proxy. For personal use, this works.
+                const GITHUB_TOKEN = "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"; 
+                const REPO = "YOUR_USERNAME/YOUR_REPO_NAME";
+
+                // 1. Upload File
+                try {
+                    // Check if file exists to get SHA for overwrite
+                    let sha = "";
+                    const check = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
+                    if(check.ok) { const data = await check.json(); sha = data.sha; }
+
+                    const upload = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, {
+                        method: 'PUT',
+                        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: "new upload", content: content, sha: sha })
+                    });
+                    
+                    if(!upload.ok) throw new Error("Upload failed");
+
+                    // 2. Trigger Action
+                    await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `token ${GITHUB_TOKEN}` },
+                        body: JSON.stringify({ event_type: "process_video" })
+                    });
+
+                    document.getElementById('status').innerText = "✅ Done! Check your Email in 3 mins.";
+                } catch (e) {
+                    document.getElementById('status').innerText = "❌ Error: " + e.message;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>
