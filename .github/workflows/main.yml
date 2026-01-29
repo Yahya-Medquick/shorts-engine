@@ -14,24 +14,28 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          pip install ffmpeg-python pillow google-api-python-client google-auth-httplib2 google-auth-oauthlib
+          pip install ffmpeg-python pillow cloudinary
 
-      - name: Process and Upload
+      - name: Run Processing Engine
         env:
-          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
-          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: python editor.py
 
-      - name: Send Email Notification
+      - name: Send Email with Download Link
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "✅ Video Ready"
+          subject: "🟢 VIDEO READY: Click to Save"
           to: ${{ secrets.RECIPIENT_EMAIL }}
-          from: "AI Editor"
           body: |
-            Your video and thumbnail are ready in Google Drive!
-            Link: https://drive.google.com/drive/u/0/folders/${{ secrets.DRIVE_FOLDER_ID }}
+            Processing complete! 
+            Tap the link below to watch or save your video to your phone:
+            
+            ${{ env.DOWNLOAD_URL }}
+        env:
+          DOWNLOAD_URL: ${{ steps.get_link.outputs.link }}
