@@ -10,11 +10,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Tools
-        uses: svenstaro/setup-ffmpeg@v2
-
-      - name: Install Python Libs
-        run: pip install ffmpeg-python pillow
+      - name: Install Tools (FFmpeg & Python Libs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install ffmpeg-python pillow
 
       - name: Process Video & Thumbnail
         run: python editor.py
