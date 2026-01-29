@@ -52,7 +52,7 @@ def process_video(input_path, output_path, music_path, hook_path):
 
 if __name__ == "__main__":
     # Ensure assets exist
-    if not os.path.exists('assets/bg_music.mp3'):
+    if not os.path.exists('bg_music.mp3'):
         print("Error: Missing bg_music.mp3")
         exit(1)
         
