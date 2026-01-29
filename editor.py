@@ -1,15 +1,22 @@
 import ffmpeg
 import os
-import json
 import cloudinary
 import cloudinary.uploader
 from PIL import Image, ImageDraw, ImageFont
 
-# 1. Cloudinary Configuration
+# 1. Cloudinary Configuration with explicit error check
+CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
+API_KEY = os.environ.get('CLOUDINARY_API_KEY')
+API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
+
+if not all([CLOUD_NAME, API_KEY, API_SECRET]):
+    print("❌ ERROR: Cloudinary Secrets are missing in GitHub!")
+    exit(1)
+
 cloudinary.config(
-    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.environ.get('CLOUDINARY_API_KEY'),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+    cloud_name=CLOUD_NAME,
+    api_key=API_KEY,
+    api_secret=API_SECRET,
     secure=True
 )
 
@@ -17,14 +24,21 @@ def create_thumbnail(video_path, text, output_path):
     try:
         probe = ffmpeg.probe(video_path)
         duration = float(probe['format']['duration'])
-        ffmpeg.input(video_path, ss=duration/2).output('frame.jpg', vframes=1).run(overwrite_output=True)
+        # Added -update 1 to fix the 'image sequence' error from your logs
+        (
+            ffmpeg
+            .input(video_path, ss=duration/2)
+            .output('frame.jpg', vframes=1, **{'update': 1})
+            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        )
         img = Image.open('frame.jpg')
         draw = ImageDraw.Draw(img)
         try: font = ImageFont.truetype("bold_font.ttf", 150)
         except: font = ImageFont.load_default()
         draw.text((100, 400), text, font=font, fill="yellow")
         img.save(output_path)
-    except Exception as e: print(f"Thumbnail error: {e}")
+    except Exception as e: 
+        print(f"⚠️ Thumbnail warning: {e}")
 
 def process_video(input_path, output_path, music_path, hook_path):
     print("🎬 Starting FFmpeg Engine...")
@@ -44,19 +58,22 @@ def process_video(input_path, output_path, music_path, hook_path):
 if __name__ == "__main__":
     process_video('raw_input.mp4', 'final_short.mp4', 'bg_music.mp3', 'hook.mp4')
     
-    print("🚀 Uploading high-quality video to Cloudinary...")
-    # upload_large handles big files in 20MB chunks automatically
-    response = cloudinary.uploader.upload_large(
-        'final_short.mp4',
-        resource_type="video",
-        public_id="latest_short_video",
-        overwrite=True,
-        chunk_size=20000000 
-    )
-    
-    # Store the URL for the frontend/email
-    download_url = response.get('secure_url')
-    print(f"✅ FINAL_LINK: {download_url}")
-    
-    with open("download_link.txt", "w") as f:
-        f.write(download_url)
+    print("🚀 Uploading to Cloudinary...")
+    try:
+        response = cloudinary.uploader.upload_large(
+            'final_short.mp4',
+            resource_type="video",
+            public_id="latest_short_video",
+            overwrite=True,
+            chunk_size=6000000 # 6MB chunks for better stability
+        )
+        download_url = response.get('secure_url')
+        print(f"✅ FINAL_LINK: {download_url}")
+        
+        # Write to a file that GitHub Actions can read
+        with open("link.txt", "w") as f:
+            f.write(download_url)
+            
+    except Exception as e:
+        print(f"❌ Cloudinary Error: {e}")
+        exit(1)
