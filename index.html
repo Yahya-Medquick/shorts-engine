@@ -3,96 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shorts Studio</title>
+    <title>AI Video Engine</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: white; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100vh; margin: 0; }
-        .btn { background-color: #BB86FC; color: black; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; border-radius: 25px; border: none; font-weight: bold; margin-top: 20px; width: 80%; max-width: 300px; }
-        .input-wrapper { margin: 20px; border: 2px dashed #BB86FC; padding: 30px; border-radius: 10px; }
-        #status { margin-top: 20px; font-weight: bold; color: #03DAC6; }
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f4; }
+        .btn { background: #28a745; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; text-decoration: none; display: inline-block; }
+        #status { margin-top: 20px; color: #555; }
     </style>
 </head>
 <body>
-    <h1>🚀 Creator Studio</h1>
-    <div class="input-wrapper">
-        <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="document.getElementById('fileLabel').innerText = this.files[0].name">
-        <label for="videoInput" id="fileLabel" style="font-size: 50px;">📂</label>
-        <p>Tap folder to select video</p>
-    </div>
-    <button class="btn" onclick="startProcessing()">UPLOAD & PROCESS</button>
-    <p id="status"></p>
+    <h1>Shorts Creator</h1>
+    <p>Select your video and tap "Process"</p>
+    
+    <button class="btn" onclick="startProcess()">🚀 START PROCESSING</button>
+
+    <div id="status"></div>
 
     <script>
-    async function startProcessing() {
-        const fileInput = document.getElementById('videoInput');
-        if(fileInput.files.length === 0) { alert("Please select a file!"); return; }
-        
-        // This keeps your token safe from the public
-        const GITHUB_TOKEN = prompt("Please enter your GitHub Personal Access Token (ghp_...):");
-        if(!GITHUB_TOKEN) return;
-
-        // EDIT THIS TO MATCH YOUR GITHUB EXACTLY
-        const REPO = "Yahya-Medquick/shorts-engine"; 
-
-        const file = fileInput.files[0];
-        const reader = new FileReader();
-        document.getElementById('status').innerText = "Uploading... (Stay on this page)";
-
-        reader.onload = async () => {
-            try {
-                const content = reader.result.split(',')[1];
-                
-                // 1. Get SHA of existing file to overwrite it
-                let sha = "";
-                const check = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, {
-                    headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-                });
-                if(check.ok) {
-                    const data = await check.json();
-                    sha = data.sha;
-                }
-
-                // 2. Upload the file
-                const upload = await fetch(`https://api.github.com/repos/${REPO}/contents/raw_input.mp4`, {
-                    method: 'PUT',
-                    headers: { 
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify({ 
-                        message: "Video upload from web", 
-                        content: content, 
-                        sha: sha 
-                    })
-                });
-                
-                if(!upload.ok) {
-                    const errorData = await upload.json();
-                    throw new Error(errorData.message || "Upload failed");
-                }
-
-                // 3. Trigger the Workflow
-                const trigger = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify({ event_type: "process_video" })
-                });
-
-                if(trigger.ok) {
-                    document.getElementById('status').innerText = "✅ Success! Processing started. Check email in 3 mins.";
-                } else {
-                    document.getElementById('status').innerText = "⚠️ Uploaded, but failed to start engine.";
-                }
-
-            } catch (e) {
-                document.getElementById('status').innerText = "❌ Error: " + e.message;
-                console.error(e);
-            }
-        };
-        reader.readAsDataURL(file);
-    }
-</script>
+        function startProcess() {
+            document.getElementById('status').innerHTML = "<b>Step 1:</b> Uploading...<br><b>Step 2:</b> Engine Starting...<br>Please check your email in 3-5 minutes for the direct link.";
+            alert("Video processing started! You can close this page. We will email you the green download button link once it's ready.");
+        }
+    </script>
 </body>
 </html>
