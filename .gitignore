@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+venv/
+env/
+*.mp4
+*.jpg
+*.png
+credentials.json
+token.json
+link.txt
+results.txt
+enhanced.mp4
+slow_input.mp4
+thumbnail_frame.jpg
