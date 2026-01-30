@@ -1,42 +1,185 @@
-name: Professional Shorts Pipeline
+name: Professional Video Pipeline
+
 on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'URL of the video to process'
+        required: true
+        type: string
   repository_dispatch:
     types: [process_video]
 
 jobs:
-  produce:
+  process_video:
     runs-on: ubuntu-latest
+    env:
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Tools
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          pip install ffmpeg-python pillow cloudinary
+          sudo apt-get install -y ffmpeg libsm6 libxext6
+          pip install ffmpeg-python pillow cloudinary requests opencv-python-headless
 
-      - name: Run Processing Engine
-        id: engine
-        env:
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+      - name: Download Video
+        id: download
+        run: |
+          if [ -n "${{ github.event.inputs.video_url }}" ]; then
+            VIDEO_URL="${{ github.event.inputs.video_url }}"
+          elif [ -n "${{ github.event.client_payload.video_url }}" ]; then
+            VIDEO_URL="${{ github.event.client_payload.video_url }}"
+          else
+            echo "No video URL provided"
+            exit 1
+          fi
+          
+          echo "Downloading video from: $VIDEO_URL"
+          curl -L -o "raw_input.mp4" "$VIDEO_URL"
+          
+          if [ ! -f "raw_input.mp4" ]; then
+            echo "Failed to download video"
+            exit 1
+          fi
+          
+          echo "VIDEO_DOWNLOADED=true" >> $GITHUB_ENV
+          echo "video_url=$VIDEO_URL" >> $GITHUB_OUTPUT
+
+      - name: Run Video Processing
+        id: process
         run: |
           python editor.py
-          echo "DOWNLOAD_URL=$(cat link.txt)" >> $GITHUB_ENV
+          echo "PROCESS_COMPLETE=true" >> $GITHUB_ENV
 
-      - name: Send Email with Download Link
+      - name: Upload to Google Drive
+        id: drive_upload
+        continue-on-error: true
+        run: |
+          if [ -f "final_short.mp4" ]; then
+            pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+            
+            # Save credentials from secret
+            echo "${{ secrets.GDRIVE_CREDENTIALS }}" > credentials.json
+            
+            python << 'EOF'
+import os
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.auth.transport.requests import Request
+
+# If modifying these scopes, delete the file token.json.
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
+def upload_to_drive():
+    creds = None
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+
+    service = build('drive', 'v3', credentials=creds)
+    
+    file_metadata = {
+        'name': 'processed_video.mp4',
+        'parents': ['${{ secrets.DRIVE_FOLDER_ID }}']
+    }
+    
+    media = MediaFileUpload('final_short.mp4', 
+                          mimetype='video/mp4',
+                          resumable=True)
+    
+    file = service.files().create(body=file_metadata,
+                                  media_body=media,
+                                  fields='id, webViewLink').execute()
+    
+    print(f"File ID: {file.get('id')}")
+    print(f"View Link: {file.get('webViewLink')}")
+    
+    # Save link for email
+    with open("drive_link.txt", "w") as f:
+        f.write(file.get('webViewLink'))
+
+upload_to_drive()
+EOF
+            
+            if [ -f "drive_link.txt" ]; then
+              echo "DRIVE_LINK=$(cat drive_link.txt)" >> $GITHUB_ENV
+            fi
+          fi
+
+      - name: Send Notification
+        id: notify
+        run: |
+          # Prioritize Cloudinary link, fallback to Drive
+          if [ -f "link.txt" ]; then
+            DOWNLOAD_URL=$(cat link.txt)
+          elif [ -n "${{ env.DRIVE_LINK }}" ]; then
+            DOWNLOAD_URL="${{ env.DRIVE_LINK }}"
+          else
+            DOWNLOAD_URL="Processing completed but no link available"
+          fi
+          
+          echo "FINAL_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
+          
+          # Create email body
+          cat > email_body.txt << EOF
+🎬 Your professional video is ready!
+
+✅ Processing completed successfully
+📺 Video optimized for YouTube/Shorts
+📱 Download: $DOWNLOAD_URL
+
+Processing details:
+- Resolution: 1080x1920 (9:16)
+- Audio optimized
+- Thumbnail generated
+- Professional editing applied
+
+This link will expire in 30 days.
+EOF
+
+      - name: Send Email
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "🟢 VIDEO READY: Click to Save"
+          subject: "✅ Your Professional Video is Ready!"
           to: ${{ secrets.RECIPIENT_EMAIL }}
-          body: |
-            Processing complete! 
-            Tap the link below to watch or save your video to your phone:
-            
-            ${{ env.DOWNLOAD_URL }}
+          body: file://email_body.txt
+          attachments: thumbnail.jpg
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed-video
+          path: |
+            final_short.mp4
+            thumbnail.jpg
+            link.txt
+          retention-days: 1
